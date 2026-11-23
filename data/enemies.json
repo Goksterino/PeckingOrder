@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Fox",
+    "xpReward": 15,
+    "igcReward": 5,
+    "spawnDistance": 40.0,
+    "stats": {
+      "maxHp": 45.0,
+      "damage": 10.0,
+      "attackSpeed": 1.0,
+      "moveSpeed": 25.0,
+      "armor": 2.0,
+      "critChance": 0.05
+    }
+  }
+]

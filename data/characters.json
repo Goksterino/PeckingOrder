@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Duckling",
+    "unlockCostIgc": 0,
+    "stats": {
+      "maxHp": 150.0,
+      "damage": 18.0,
+      "attackSpeed": 1.3,
+      "moveSpeed": 100.0,
+      "armor": 5.0,
+      "critChance": 0.10
+    }
+  }
+]

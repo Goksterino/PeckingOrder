@@ -1,19 +1,14 @@
 cmake_minimum_required(VERSION 3.28)
 
 # NOTE: update EXECUTABLE_NAME in .github/workflows/cmake.yml when changing executable name in this file
-# for now, the project name is used as the executable name
 set(MAIN_PROJECT_NAME "oop")
 set(MAIN_EXECUTABLE_NAME "${MAIN_PROJECT_NAME}_main")
 set(MAIN_LIBRARY_NAME "${MAIN_PROJECT_NAME}")
 set(TESTS_EXECUTABLE_NAME "${MAIN_PROJECT_NAME}_test")
 
-# needs to be before `project()` to take effect
 option(CMAKE_EXPORT_COMPILE_COMMANDS "Export compilation database" ON)
 
 project(${MAIN_PROJECT_NAME})
-# set(CMAKE_PROJECT_VERSION_MAJOR 0)
-# set(CMAKE_PROJECT_VERSION_MINOR 0)
-# set(CMAKE_PROJECT_VERSION_PATCH 1)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,60 +23,73 @@ include(CTest)
 include(cmake/RegisterTests.cmake)
 
 ###############################################################################
-
 # External dependencies with FetchContent
-
-# include(FetchContent)
-#
-# set(FETCHCONTENT_QUIET OFF CACHE INTERNAL "Override verbose output" FORCE)
-# set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE INTERNAL "Override update strategy" FORCE)
-#
-# NOTE: Also update env vars used for caching in
-#     - .github/actions/configure-cmake/action.yml
-#     - .github/workflows/cmake.yml
-# FetchContent_Declare(
-#     SomeLib
-#     SYSTEM         # keeps ext libs out of static code analysis
-#     GIT_REPOSITORY https://github.com/<SomeUser>/<SomeLib>.git
-#     GIT_TAG        <some_git_hash> # <which tag/branch @ <some_date>>
-#     GIT_SHALLOW    1  # works only with branches or tags, not with arbitrary commit hashes
-#     GIT_PROGRESS   ON
-# )
-#
-# FetchContent_MakeAvailable(SomeLib)
-
 ###############################################################################
 
-# External dependencies with find_package
+include(FetchContent)
 
-# find_package(Threads REQUIRED)
+set(FETCHCONTENT_QUIET OFF CACHE INTERNAL "Override verbose output" FORCE)
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE INTERNAL "Override update strategy" FORCE)
+
+# (Stocare) nlohmann/json - citirea datelor din data/*.json
+FetchContent_Declare(
+    nlohmann_json
+    SYSTEM
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    1
+    GIT_PROGRESS   ON
+)
+
+# (Biblioteca externă #1) spdlog - log-uri pentru evenimentele din arenă
+set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    spdlog
+    SYSTEM
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.15.1
+    GIT_SHALLOW    1
+    GIT_PROGRESS   ON
+)
+
+# (Biblioteca externă #2) tabulate - afișarea tabelelor în consolă
+FetchContent_Declare(
+    tabulate
+    SYSTEM
+    GIT_REPOSITORY https://github.com/p-ranav/tabulate.git
+    GIT_TAG        v1.5
+    GIT_SHALLOW    1
+    GIT_PROGRESS   ON
+)
+
+FetchContent_MakeAvailable(nlohmann_json spdlog tabulate)
 
 ###############################################################################
-
 # Configure sources
+###############################################################################
 
-# always STATIC (simpler); TBD if we ever want dynamic for this; BUILD_SHARED_LIBS is for ext deps
 add_library(${MAIN_LIBRARY_NAME} STATIC)
 
-# NOTE: update EXECUTABLE_NAME in .github/workflows/cmake.yml when changing name here
 add_executable(${MAIN_EXECUTABLE_NAME}
     app/main.cpp
 )
+
 target_sources(${MAIN_LIBRARY_NAME}
     PRIVATE
-        src/Example.cpp
-        src/internal/Detail.cpp
+        src/Stats.cpp
+        src/Upgrade.cpp
+        src/Character.cpp
+        src/Enemy.cpp
+        src/Arena.cpp
+        src/DataLoader.cpp
 )
 
-# NOTE: Add all defined targets (e.g. executables, libraries, etc. )
-# NOTE: RUN_SANITIZERS is optional, if it's not present it will default to true
 set_compiler_flags(RUN_SANITIZERS ${USE_ASAN} TARGET_NAMES ${MAIN_EXECUTABLE_NAME} ${MAIN_LIBRARY_NAME})
 
 ###############################################################################
-
 # Configure includes
+###############################################################################
 
-# app/ needs no include dir of its own: it inherits include/ by linking the library
 target_include_directories(${MAIN_LIBRARY_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
@@ -89,9 +97,6 @@ target_include_directories(${MAIN_LIBRARY_NAME} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
-# use SYSTEM so cppcheck and clang-tidy do not report warnings from these directories
-# vendored external deps should be private by default
-# a public dep is an interface commitment, shared by app/ and tests/
 target_include_directories(${MAIN_LIBRARY_NAME} SYSTEM PUBLIC
     ${EXT_PUBLIC_DIR}
 )
@@ -99,21 +104,26 @@ target_include_directories(${MAIN_LIBRARY_NAME} SYSTEM PRIVATE
     ${EXT_PRIVATE_DIR}
 )
 
-# target_include_directories(${MAIN_EXECUTABLE_NAME} SYSTEM PRIVATE ${<SomeLib>_SOURCE_DIR}/include)
-
 ###############################################################################
-
 # Link libraries
-
-target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE ${MAIN_LIBRARY_NAME})
-
-# target_link_directories(${MAIN_EXECUTABLE_NAME} PRIVATE ${<SomeLib>_BINARY_DIR}/lib)
-# target_link_libraries(${MAIN_EXECUTABLE_NAME} <SomeLib>)
-
 ###############################################################################
 
-# copy binaries to "bin" folder; these are uploaded as artifacts on each release
-# DESTINATION_DIR is set as "bin" in cmake/Options.cmake
+target_link_libraries(${MAIN_LIBRARY_NAME}
+    PRIVATE
+        nlohmann_json::nlohmann_json
+        spdlog::spdlog_header_only
+)
+
+target_link_libraries(${MAIN_EXECUTABLE_NAME}
+    PRIVATE
+        ${MAIN_LIBRARY_NAME}
+        tabulate::tabulate
+)
+
+###############################################################################
+# Install & Copy helper
+###############################################################################
+
 install(TARGETS ${MAIN_EXECUTABLE_NAME} DESTINATION ${DESTINATION_DIR})
 install(TARGETS ${MAIN_LIBRARY_NAME} ARCHIVE DESTINATION lib)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
@@ -126,14 +136,21 @@ if(APPLE)
     install(FILES ${CMAKE_SOURCE_DIR}/launcher.command DESTINATION ${DESTINATION_DIR})
 endif()
 
-copy_files(FILES tastatura.txt DIRECTORY assets COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
-# copy_files(FILES tastatura.txt config.json DIRECTORY images sounds COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
-# copy_files(DIRECTORY images sounds COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
+copy_files(FILES tastatura.txt DIRECTORY data COPY_TO_DESTINATION TARGET_NAME ${MAIN_EXECUTABLE_NAME})
 
 ###############################################################################
-
-# Tests; BUILD_TESTING is declared in cmake/Options.cmake, include(CTest) enables it. No framework on main
+# Tests
+###############################################################################
 
 if(BUILD_TESTING)
     add_subdirectory(tests)
+    add_custom_target(copy_test_data ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/data
+            ${CMAKE_CURRENT_BINARY_DIR}/data
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/data
+            $<TARGET_FILE_DIR:${TESTS_EXECUTABLE_NAME}>/data
+    )
+    add_dependencies(${TESTS_EXECUTABLE_NAME} copy_test_data)
 endif()

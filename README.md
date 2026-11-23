@@ -1,4 +1,11 @@
-# Nu primesc notă pentru că nu am pus titlu și descriere
+# Pecking Order
+
+Pecking Order este un joc 2D top-down time-survival roguelite inspirat de Brotato și Vampire Survivors, dezvoltat în C++.
+Jucătorul se află într-o arenă unde este atacat la nesfârșit de valuri de inamici. Pe parcursul jocului acesta primește o multitudine de upgrade-uri pentru a-l ajuta.
+Jocul devine din ce în ce mai greu până când jucătorul nu mai poate face față și „moare”.
+
+Înainte de a începe jocul, se poate alege caracterul. Fiecare caracter are avantajele și dezavantajele sale, unele caractere fiind mai înclinate spre anumite stiluri de joc.
+Caracterele noi se deblochează pe baza unui IGC (in-game currency) primit când se încheie un run.
 
 ### Folosiți template-ul corespunzător grupei voastre!
 
